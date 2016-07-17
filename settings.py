@@ -6,16 +6,16 @@ sys.setdefaultencoding('utf-8')
 import tensorflow as tf
 
 # 文本数据
-source_text_file = 'data/LCSTS1m.source.txt'
-target_text_file = 'data/LCSTS1m.target.txt'
+source_text_file = 'data/LCSTS/PART_I.source.txt'
+target_text_file = 'data/LCSTS/PART_I.target.txt'
 
 # 预处理
-source_wid_file = 'data/LCSTS1m.source.wid.txt'
-target_wid_file = 'data/LCSTS1m.target.wid.txt'
-vocab_file = 'data/LCSTS1m.vocab.txt'
-inv_vocab_file = 'data/LCSTS1m.invvocab.txt'
 preprocess_num = 10000
 vocab_size = 4000
+source_wid_file = 'data/LCSTS/PART_I.source.wid.txt'
+target_wid_file = 'data/LCSTS/PART_I.target.wid.txt'
+vocab_file = 'data/LCSTS/PART_I.vocab.txt'
+inv_vocab_file = 'data/LCSTS/PART_I.invocab.txt'
 
 # 模型中预处理
 PAD = '__PAD__'
