@@ -28,14 +28,15 @@ EOS_ID = 2
 UNK_ID = 3
 reverse_source = True
 add_go_to_target = True
-buckets=[(100,20),(100,30),(110,20),(110,30),(120,20),(120,30),(130,20),(140,30)]
+#buckets=[(100,20),(100,30),(110,20),(110,30),(120,20),(120,30),(130,20),(140,30)]
+buckets=[(140,30)]
 dev_ratio = 0.05
 
 # 模型
-size = 128
-num_layers = 3
+size = 16
+num_layers = 1
 cell_type = 'GRU'
-batch_size = 1024
+batch_size = 512
 learning_rate = 0.5
 learning_rate_decay_factor = 0.99
 num_samples = 512
@@ -43,5 +44,9 @@ max_gradient_norm = 5.0
 forward_only = False
 
 #
+min_epoch = 5
+max_epoch = 500
+convergence = 1e-5
+look_back = 3
 train_dir = 'train'
 steps_per_checkpoint = 100

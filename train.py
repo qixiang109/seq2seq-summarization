@@ -9,7 +9,11 @@ import settings
 import tensorflow as tf
 import numpy as np
 import time
+import datetime
+import utils
+from progressive.bar import Bar
 
+current_epoch=0
 
 def create_model(session, forward_only):
     model = simple_enc_dec_model.Model(
@@ -30,13 +34,56 @@ def create_model(session, forward_only):
         print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
         model.saver.restore(session, ckpt.model_checkpoint_path)
     else:
-        print("Created model with fresh parameters.")
+        print("Initilizing model with fresh parameters.")
         session.run(tf.initialize_all_variables())
     return model
 
 
-def train():
+def do_batch(model,session,batch_data,bucket_id):
+    d1 = datetime.datetime.now()
+    encoder_inputs, decoder_inputs, target_weights = model.transpose_batch(batch_data,bucket_id)
+    _, step_loss, _ = model.step(session, encoder_inputs, decoder_inputs,
+                                 target_weights, bucket_id, False)
+    d2 = datetime.datetime.now()
+    duration = d2-d1
+    return (step_loss,duration)
 
+def do_epoch(model,session):
+
+    """每个epoch重新划分一次batch，然后乱序执行"""
+    global current_epoch
+    current_epoch+=1
+    #每个epoch重新划分一次batch
+    batch_datas = []
+    batch_bucket_ids = []
+    for bucket_id, bucket_data_set in enumerate(data_utils.train_set):
+        for one in utils.shuffle_divide(bucket_data_set,settings.batch_size):
+            batch_datas.append(one)
+            batch_bucket_ids.append(bucket_id)
+    batch_num = len(batch_datas)
+    #乱序执行batch
+    bar = Bar(max_value=len(batch_datas),title='epoch '+str(current_epoch))
+    bar.cursor.clear_lines(3)  # Make some room
+    bar.cursor.save()  # Mark starting line
+    perm = np.random.permutation(batch_num)
+    batch_times=[]
+    batch_losses=[]
+    for batch_id in perm:
+        batch_loss, batch_time = do_batch(model,session, batch_datas[batch_id], batch_bucket_ids[batch_id])
+        batch_times.append(batch_time)
+        batch_losses.append(batch_loss)
+        time_used = np.sum(batch_times)
+        time_eta = time_used/len(batch_times) * (len(batch_datas)-len(batch_times))
+        mean_loss = np.mean(batch_losses)
+        bar.cursor.restore()  # Return cursor to start
+        bar.draw(value=len(batch_times),newline=True)  # Draw the bar!
+        print 'used: '+str(time_used)[0:10]+' eta: '+str(time_eta)[0:10]
+        print 'mean loss: '+str(round(mean_loss,2))
+
+    return mean_loss
+
+
+def train():
     # load and prepare data
     data_utils.load_and_prepare_data()
 
@@ -45,35 +92,23 @@ def train():
         print("Creating %d layers of %d units." %
               (settings.num_layers, settings.size))
         model = create_model(sess, settings.forward_only)
-
         # Read data into buckets and compute their sizes.
-        train_bucket_sizes = [len(data_utils.train_set[b])
-                              for b in xrange(len(settings.buckets))]
-        train_total_size = float(sum(train_bucket_sizes))
-        train_buckets_scale = [sum(train_bucket_sizes[:i + 1]) / train_total_size
-                               for i in xrange(len(train_bucket_sizes))]
-
-        # This is the training loop.
-        step_time, loss = 0.0, 0.0
-        current_step = 0
-        previous_losses = []
+        # train loop
+        mean_losses=[]
         while True:
-            # Choose a bucket according to data distribution. We pick a random number
-            # in [0, 1] and use the corresponding interval in
-            # train_buckets_scale.
-            random_number_01 = np.random.random_sample()
-            bucket_id = min([i for i in xrange(len(train_buckets_scale))
-                             if train_buckets_scale[i] > random_number_01])
-
-            # Get a batch and make a step.
-            start_time = time.time()
-            encoder_inputs, decoder_inputs, target_weights = model.get_batch(
-                data_utils.train_set, bucket_id)
-            _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
-                                         target_weights, bucket_id, False)
-            current_step += 1
-            print current_step, step_loss
-
+            loss = do_epoch(model,sess)
+            mean_losses.append(loss)
+            if current_epoch<settings.min_epoch:
+                continue
+            if current_epoch>settings.max_epoch:
+                break
+            converge = True
+            for i in range(1,settings.look_back+1):
+                if np.abs(mean_losses[-1*i]-mean_losses[-1*(i+1)]) > settings.convergence:
+                    converge=False
+                    break
+            if converge:
+                break
 
 if __name__ == '__main__':
     train()
