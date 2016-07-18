@@ -14,7 +14,7 @@ import utils
 from progressive.bar import Bar
 
 current_epoch=0
-
+current_step = 0
 def create_model(session, forward_only):
     model = simple_enc_dec_model.Model(
         vocab_size=len(data_utils.dictionary),
@@ -40,10 +40,15 @@ def create_model(session, forward_only):
 
 
 def do_batch(model,session,batch_data,bucket_id):
+    global current_step
     d1 = datetime.datetime.now()
     encoder_inputs, decoder_inputs, target_weights = model.transpose_batch(batch_data,bucket_id)
     _, step_loss, _ = model.step(session, encoder_inputs, decoder_inputs,
                                  target_weights, bucket_id, False)
+    current_step+=1
+    if current_step%settings.steps_per_checkpoint==0:
+        decode("昨天，包括工农中建交五大行在内的多家银行，不约而同地在官网发布公告称，它们的房地产贷款政策没有变化。多家银行表示，会支持居民购买首套住房。一名金融问题专家称，目前房价不具备大涨大跌的基础，特别是一二线城市狂跌的可能性小。",session,model)
+
     d2 = datetime.datetime.now()
     duration = d2-d1
     return (step_loss,duration)
@@ -108,7 +113,7 @@ def decode(sentence,session=None,model=None):
     if settings.PAD_ID in outputs:
         outputs = outputs[:outputs.index(settings.PAD_ID)]
     # Print out French sentence corresponding to outputs.
-    print " ".join([data_utils.inv_dictionary[output] for output in outputs])
+    print " ".join([data_utils.inv_dictionary[output] for output in outputs]).decode('utf-8')
 
 
 
