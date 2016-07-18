@@ -62,6 +62,24 @@ def prepare_dataset():
                 break
 
 
+def format_source_target(source_wids,target_wids):
+    target_wids = target_wids+[settings.EOS_ID]
+    if settings.add_go_to_target:
+        target_wids = [settings.GO_ID] + target_wids
+    if settings.reverse_source:
+        source_wids = list(reversed(source_wids))
+    lsource = len(source_wids)
+    ltarget = len(target_wids)
+    for bucket_id, (source_bucket_length, target_bucket_length) in enumerate(settings.buckets):
+        if lsource <= source_bucket_length and ltarget <= target_bucket_length:
+            target_wids = target_wids + [settings.PAD_ID]*(target_bucket_length-ltarget)
+            if settings.reverse_source:
+                source_wids = [settings.PAD_ID]*(source_bucket_length-lsource)+source_wids
+            else:
+                source_wids = source_wids + [settings.PAD_ID]*(source_bucket_length-lsource)
+            break
+    return (source_wids,target_wids,bucket_id)
+
 def split_train_dev():
     global train_set,dev_set
     for i, one_set in enumerate(data_set):
@@ -74,6 +92,22 @@ def load_and_prepare_data():
     prepare_dataset()
     split_train_dev()
 
+def wordlist_to_token_ids(wordlist):
+    if isinstance(wordlist, str):
+        wordlist = wordlist.decode('utf-8')
+    if isinstance(wordlist, unicode):
+        wordlist = list(wordlist)
+    if not isinstance(wordlist, list):
+        print 'sentence', wordlist, 'not str, unicode or list'
+        return None
+    ids = [-1] * len(wordlist)
+    for i, word in enumerate(wordlist):
+        if word in dictionary:
+            ids[i] = dictionary[word]
+        else:
+            ids[i] = dictionary[settings.UNK]
+    return ids
+
 if __name__ == '__main__':
     load_and_prepare_data()
-    print [len(one) for one in data_set], ' data in each bucket'
+    #print [len(one) for one in data_set], ' data in each bucket'

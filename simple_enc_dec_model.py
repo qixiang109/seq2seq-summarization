@@ -234,10 +234,13 @@ class Model(object):
         The triple (encoder_inputs, decoder_inputs, target_weights) for
         the constructed batch that has the proper format to call step(...) later.
         """
-
         encoder_size, decoder_size = self.buckets[bucket_id]
         encoder_inputs = [pair[0] for pair in batch_data]
         decoder_inputs = [pair[1] for pair in batch_data]
+
+        #print batch_data
+        #print encoder_inputs
+        #sys.exit(0)
 
         batch_encoder_inputs, batch_decoder_inputs, batch_weights = [], [], []
 

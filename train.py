@@ -77,16 +77,43 @@ def do_epoch(model,session):
         mean_loss = np.mean(batch_losses)
         bar.cursor.restore()  # Return cursor to start
         bar.draw(value=len(batch_times),newline=True)  # Draw the bar!
-        print 'used: '+str(time_used)[0:10]+' eta: '+str(time_eta)[0:10]
+        print 'elapsed: '+str(time_used)[0:10]+' eta: '+str(time_eta)[0:10]
         print 'mean loss: '+str(round(mean_loss,2))
 
     return mean_loss
 
+def decode(sentence,session=None,model=None):
+
+    #格式化输入
+    if isinstance(sentence, str):
+        sentence = sentence.decode('utf-8')
+    if isinstance(sentence, unicode):
+        sentence = list(sentence)
+    source_wids = [data_utils.dictionary[w] if w in data_utils.dictionary else data_utils.dictionary[settings.UNK] for w in sentence]
+    formated_source, formated_target, bucket_id = data_utils.format_source_target(source_wids,[])
+
+    #get batch
+    original_batch_size = model.batch_size
+    model.batch_size = 1  # We decode one sentence at a time.
+    encoder_inputs, decoder_inputs,target_weights = model.transpose_batch([(formated_source, formated_target)],bucket_id)
+    _, _, output_logits = model.step(session, encoder_inputs, decoder_inputs,
+                                   target_weights, bucket_id, True)
+    model.batch_size = original_batch_size
+
+    # This is a greedy decoder - outputs are just argmaxes of output_logits.
+    outputs = [int(np.argmax(logit, axis=1)) for logit in output_logits]
+    # If there is an EOS symbol in outputs, cut them at that point.
+    if settings.EOS_ID in outputs:
+        outputs = outputs[:outputs.index(settings.EOS_ID)]
+    if settings.PAD_ID in outputs:
+        outputs = outputs[:outputs.index(settings.PAD_ID)]
+    # Print out French sentence corresponding to outputs.
+    print " ".join([data_utils.inv_dictionary[output] for output in outputs])
+
+
 
 def train():
     # load and prepare data
-    data_utils.load_and_prepare_data()
-
     # create model
     with tf.Session() as sess:
         print("Creating %d layers of %d units." %
@@ -97,6 +124,7 @@ def train():
         mean_losses=[]
         while True:
             loss = do_epoch(model,sess)
+            decode("昨天，包括工农中建交五大行在内的多家银行，不约而同地在官网发布公告称，它们的房地产贷款政策没有变化。多家银行表示，会支持居民购买首套住房。一名金融问题专家称，目前房价不具备大涨大跌的基础，特别是一二线城市狂跌的可能性小。",sess,model)
             mean_losses.append(loss)
             if current_epoch<settings.min_epoch:
                 continue
@@ -111,4 +139,6 @@ def train():
                 break
 
 if __name__ == '__main__':
+    data_utils.load_and_prepare_data()
     train()
+    #dev()
