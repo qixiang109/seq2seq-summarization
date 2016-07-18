@@ -96,6 +96,8 @@ def decode(sentence,session=None,model=None):
         sentence = list(sentence)
     source_wids = [data_utils.dictionary[w] if w in data_utils.dictionary else data_utils.dictionary[settings.UNK] for w in sentence]
     formated_source, formated_target, bucket_id = data_utils.format_source_target(source_wids,[])
+    formated_target[1] = settings.PAD_ID
+    #print 'format target', " ".join([data_utils.inv_dictionary[output] for output in formated_target]).encode('utf-8')
 
     #get batch
     original_batch_size = model.batch_size
@@ -108,12 +110,13 @@ def decode(sentence,session=None,model=None):
     # This is a greedy decoder - outputs are just argmaxes of output_logits.
     outputs = [int(np.argmax(logit, axis=1)) for logit in output_logits]
     # If there is an EOS symbol in outputs, cut them at that point.
+    print " ".join([data_utils.inv_dictionary[output] for output in outputs]).encode('utf-8')
     if settings.EOS_ID in outputs:
         outputs = outputs[:outputs.index(settings.EOS_ID)]
-    if settings.PAD_ID in outputs:
-        outputs = outputs[:outputs.index(settings.PAD_ID)]
+    #if settings.PAD_ID in outputs:
+    #    outputs = outputs[:outputs.index(settings.PAD_ID)]
     # Print out French sentence corresponding to outputs.
-    print " ".join([data_utils.inv_dictionary[output] for output in outputs]).decode('utf-8')
+    print " ".join([data_utils.inv_dictionary[output] for output in outputs]).encode('utf-8')
 
 
 
@@ -128,6 +131,7 @@ def train():
         # train loop
         mean_losses=[]
         while True:
+            loss=0
             loss = do_epoch(model,sess)
             decode("昨天，包括工农中建交五大行在内的多家银行，不约而同地在官网发布公告称，它们的房地产贷款政策没有变化。多家银行表示，会支持居民购买首套住房。一名金融问题专家称，目前房价不具备大涨大跌的基础，特别是一二线城市狂跌的可能性小。",sess,model)
             mean_losses.append(loss)

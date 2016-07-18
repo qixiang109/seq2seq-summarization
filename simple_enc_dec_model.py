@@ -54,11 +54,16 @@ class Model(object):
 
         #seq2seq
         def seq2seq_f(encoder_inputs, decoder_inputs, do_decode):
-            return tf.nn.seq2seq.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
+            if settings.attention:
+                return tf.nn.seq2seq.embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
                           num_encoder_symbols = self.vocab_size, num_decoder_symbols = self.vocab_size,
                           embedding_size = size, output_projection=output_projection,
                           feed_previous=do_decode)
-
+            else:
+                return tf.nn.seq2seq.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
+                          num_encoder_symbols = self.vocab_size, num_decoder_symbols = self.vocab_size,
+                          embedding_size = size, output_projection=output_projection,
+                          feed_previous=do_decode)
         #feeds for input
         self.encoder_inputs = []
         self.decoder_inputs = []

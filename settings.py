@@ -33,13 +33,14 @@ buckets=[(140,30)]
 dev_ratio = 0.05
 
 # 模型
+attention = False
 size = 16
 num_layers = 1
 cell_type = 'GRU'
 batch_size = 512
 learning_rate = 0.5
 learning_rate_decay_factor = 0.99
-num_samples = 512
+num_samples = 0
 max_gradient_norm = 5.0
 forward_only = False
 
