@@ -123,8 +123,9 @@ class Model(object):
             forward_only: whether to do the backward step or only forward.
 
             Returns:
-            A triple consisting of gradient norm (or None if we did not do backward),
-            average perplexity, and the outputs.
+            1. A triple consisting of gradient norm (or None if we did not do backward),
+            2. average perplexity
+            3. outputs.
 
             Raises:
             ValueError: if length of encoder_inputs, decoder_inputs, or

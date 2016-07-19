@@ -8,6 +8,8 @@ import tensorflow as tf
 # 文本数据
 source_text_file = 'data/LCSTS/PART_I.source.txt'
 target_text_file = 'data/LCSTS/PART_I.target.txt'
+test_source_text_file = 'data/LCSTS/PART_III.source.txt'
+test_target_text_file = 'data/LCSTS/PART_III.target.txt'
 
 # 预处理
 preprocess_num = 10000
@@ -44,10 +46,11 @@ num_samples = 0
 max_gradient_norm = 5.0
 forward_only = False
 
-#
+#训练
 min_epoch = 5
 max_epoch = 500
 convergence = 1e-5
 look_back = 3
 train_dir = 'train'
 steps_per_checkpoint = 100
+test_decode_file = 'dev_decode.txt'

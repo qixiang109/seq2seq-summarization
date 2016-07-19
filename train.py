@@ -12,9 +12,8 @@ import time
 import datetime
 import utils
 from progressive.bar import Bar
+import os
 
-current_epoch=0
-current_step = 0
 def create_model(session, forward_only):
     model = simple_enc_dec_model.Model(
         vocab_size=len(data_utils.dictionary),
@@ -38,21 +37,26 @@ def create_model(session, forward_only):
         session.run(tf.initialize_all_variables())
     return model
 
-
+previous_batch_losses  = []
+current_step = 0
 def do_batch(model,session,batch_data,bucket_id):
-    global current_step
+    global current_step,previous_batch_losses
+    current_step+=1
+    #执行batch
     d1 = datetime.datetime.now()
     encoder_inputs, decoder_inputs, target_weights = model.transpose_batch(batch_data,bucket_id)
-    _, step_loss, _ = model.step(session, encoder_inputs, decoder_inputs,
-                                 target_weights, bucket_id, False)
-    current_step+=1
-    if current_step%settings.steps_per_checkpoint==0:
-        decode("昨天，包括工农中建交五大行在内的多家银行，不约而同地在官网发布公告称，它们的房地产贷款政策没有变化。多家银行表示，会支持居民购买首套住房。一名金融问题专家称，目前房价不具备大涨大跌的基础，特别是一二线城市狂跌的可能性小。",session,model)
-
+    _, step_loss, _ = model.step(session, encoder_inputs, decoder_inputs, target_weights, bucket_id, False)
     d2 = datetime.datetime.now()
-    duration = d2-d1
-    return (step_loss,duration)
+    #在checkpoint点更新学习率、保存模型
+    if current_step%settings.steps_per_checkpoint==0:
+        if len(previous_batch_losses)>2 and step_loss > max(previous_batch_losses[-3:]):
+            model.learning_rate = model.learning_rate*model.learning_rate_decay_factor
+        previous_batch_losses.append(step_loss)
+        checkpoint_path = os.path.join(settings.train_dir, "train.ckpt")
+        model.saver.save(session, checkpoint_path, global_step=current_step)
+    return (step_loss,d2-d1)
 
+current_epoch=0
 def do_epoch(model,session):
 
     """每个epoch重新划分一次batch，然后乱序执行"""
@@ -77,26 +81,35 @@ def do_epoch(model,session):
         batch_loss, batch_time = do_batch(model,session, batch_datas[batch_id], batch_bucket_ids[batch_id])
         batch_times.append(batch_time)
         batch_losses.append(batch_loss)
-        time_used = np.sum(batch_times)
-        time_eta = time_used/len(batch_times) * (len(batch_datas)-len(batch_times))
-        mean_loss = np.mean(batch_losses)
         bar.cursor.restore()  # Return cursor to start
         bar.draw(value=len(batch_times),newline=True)  # Draw the bar!
-        print 'elapsed: '+str(time_used)[0:10]+' eta: '+str(time_eta)[0:10]
-        print 'mean loss: '+str(round(mean_loss,2))
+        time_used = np.sum(batch_times)
+        time_eta = time_used/len(batch_times) * (len(batch_datas)-len(batch_times))
+        print 'elapsed: '+str(time_used)[0:10]+' eta: '+str(time_eta)[0:10]+'\r'
+        epoch_loss = np.sum(batch_losses)
+        print 'epoch loss: '+str(round(epoch_loss,2))+' batch loss: '+str(round(batch_loss,2))+'\r'
+    return np.sum(batch_losses)
 
-    return mean_loss
+def train():
+    fw = open(settings.test_decode_file,'w')
+    fw.close()
+    with tf.Session() as sess:
+        print("Creating %d layers of %d units." %
+              (settings.num_layers, settings.size))
+        model = create_model(sess, settings.forward_only)
+        # train loop
+        while True:
+            loss=0
+            loss = do_epoch(model,sess)
+            test(sess, model)
+            if current_epoch>settings.max_epoch:
+                break
 
-def decode(sentence,session=None,model=None):
+def decode(wordlist,session=None,model=None):
 
     #格式化输入
-    if isinstance(sentence, str):
-        sentence = sentence.decode('utf-8')
-    if isinstance(sentence, unicode):
-        sentence = list(sentence)
-    source_wids = [data_utils.dictionary[w] if w in data_utils.dictionary else data_utils.dictionary[settings.UNK] for w in sentence]
-    formated_source, formated_target, bucket_id = data_utils.format_source_target(source_wids,[])
-    formated_target[1] = settings.PAD_ID
+    source_wids = [data_utils.dictionary[w] if w in data_utils.dictionary else data_utils.dictionary[settings.UNK] for w in wordlist]
+    formated_source, formated_target, bucket_id = data_utils.format_source_target(source_wids,[],True)
     #print 'format target', " ".join([data_utils.inv_dictionary[output] for output in formated_target]).encode('utf-8')
 
     #get batch
@@ -106,48 +119,23 @@ def decode(sentence,session=None,model=None):
     _, _, output_logits = model.step(session, encoder_inputs, decoder_inputs,
                                    target_weights, bucket_id, True)
     model.batch_size = original_batch_size
-
     # This is a greedy decoder - outputs are just argmaxes of output_logits.
     outputs = [int(np.argmax(logit, axis=1)) for logit in output_logits]
     # If there is an EOS symbol in outputs, cut them at that point.
-    print " ".join([data_utils.inv_dictionary[output] for output in outputs]).encode('utf-8')
     if settings.EOS_ID in outputs:
         outputs = outputs[:outputs.index(settings.EOS_ID)]
     #if settings.PAD_ID in outputs:
     #    outputs = outputs[:outputs.index(settings.PAD_ID)]
     # Print out French sentence corresponding to outputs.
-    print " ".join([data_utils.inv_dictionary[output] for output in outputs]).encode('utf-8')
+    return " ".join([data_utils.inv_dictionary[output] for output in outputs]).encode('utf-8')
 
-
-
-def train():
-    # load and prepare data
-    # create model
-    with tf.Session() as sess:
-        print("Creating %d layers of %d units." %
-              (settings.num_layers, settings.size))
-        model = create_model(sess, settings.forward_only)
-        # Read data into buckets and compute their sizes.
-        # train loop
-        mean_losses=[]
-        while True:
-            loss=0
-            loss = do_epoch(model,sess)
-            decode("昨天，包括工农中建交五大行在内的多家银行，不约而同地在官网发布公告称，它们的房地产贷款政策没有变化。多家银行表示，会支持居民购买首套住房。一名金融问题专家称，目前房价不具备大涨大跌的基础，特别是一二线城市狂跌的可能性小。",sess,model)
-            mean_losses.append(loss)
-            if current_epoch<settings.min_epoch:
-                continue
-            if current_epoch>settings.max_epoch:
-                break
-            converge = True
-            for i in range(1,settings.look_back+1):
-                if np.abs(mean_losses[-1*i]-mean_losses[-1*(i+1)]) > settings.convergence:
-                    converge=False
-                    break
-            if converge:
-                break
+def test(session, model):
+    fw = open(settings.test_decode_file,'a')
+    for i,wordlist in enumerate(data_utils.test_data[0:10]):
+        fw.write(str(i)+' '+decode(wordlist,session,model).encode('utf-8')+'\n')
+        fw.write('\n')
+    fw.close()
 
 if __name__ == '__main__':
     data_utils.load_and_prepare_data()
     train()
-    #dev()

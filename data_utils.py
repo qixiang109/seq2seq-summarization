@@ -7,6 +7,7 @@ import settings
 
 source_data=[]
 target_data=[]
+test_data = []
 dictionary={}
 inv_dictionary={}
 vocab_size = 0
@@ -14,14 +15,19 @@ data_set = [ [] for bucket in settings.buckets ]
 train_set = [ [] for bucket in settings.buckets ]
 dev_set = [ [] for bucket in settings.buckets ]
 
+
+
 def load_data():
-    global source_data,target_data,dictionary,inv_dictionary,vocab_size
+    global source_data,target_data,dictionary,inv_dictionary,vocab_size,test_data
     #source
     lines = open(settings.source_wid_file).read().rstrip().split('\n')
     source_data = [map(int,line.split()) for line in lines]
     #target
     lines = open(settings.target_wid_file).read().rstrip().split('\n')
     target_data = [map(int,line.split()) for line in lines]
+    #test source
+    lines = open(settings.test_source_text_file).read().decode('utf-8').rstrip().split('\n')
+    test_data = [line.split() for line in lines]
     #dictionary
     lines = open(settings.vocab_file).read().decode('utf-8').rstrip().split('\n')
     dictionary = {line.split('\t')[0]:int(line.split('\t')[1]) for line in lines}
@@ -32,38 +38,16 @@ def load_data():
 
 def prepare_dataset():
     global data_set
-    #add EOS to target
-    for i, target_data_i in enumerate(target_data):
-        target_data[i] = target_data_i + [settings.EOS_ID]
-    #add GO to target
-    if settings.add_go_to_target:
-        for i, target_data_i in enumerate(target_data):
-            target_data[i] = [settings.GO_ID] + target_data_i
-    #reverse source
-    if settings.reverse_source:
-        for i,source_data_i in enumerate(source_data):
-            source_data_i.reverse()
-            source_data[i] = source_data_i
-    #pad to buckets
-    num_data = len(source_data)
-    for i in xrange(num_data):
-        source_data_i = source_data[i]
-        target_data_i = target_data[i]
-        len_source_data_i = len(source_data_i)
-        len_target_data_i = len(target_data_i)
-        for l, (source_bucket_length, target_bucket_length) in enumerate(settings.buckets):
-            if len_source_data_i <= source_bucket_length and len_target_data_i <= target_bucket_length:
-                if settings.reverse_source:
-                    source_data_i = [settings.PAD_ID]*(source_bucket_length-len_source_data_i)+source_data_i
-                else:
-                    source_data_i = source_data_i + [settings.PAD_ID]*(source_bucket_length-len_source_data_i)
-                target_data_i = target_data_i + [settings.PAD_ID]*(target_bucket_length-len_target_data_i)
-                data_set[l].append((source_data_i,target_data_i))
-                break
+    data_set = [ [] for bucket in settings.buckets ]
+    for i in xrange(len(source_data)):
+        source_wids, target_wids, bucket_id = format_source_target(source_data[i],target_data[i])
+        if bucket_id is not  None:
+            data_set[bucket_id].append((source_wids,target_wids))
 
 
-def format_source_target(source_wids,target_wids):
-    target_wids = target_wids+[settings.EOS_ID]
+def format_source_target(source_wids,target_wids,test=False):
+    if not test:
+        target_wids = target_wids+[settings.EOS_ID]
     if settings.add_go_to_target:
         target_wids = [settings.GO_ID] + target_wids
     if settings.reverse_source:
@@ -77,8 +61,8 @@ def format_source_target(source_wids,target_wids):
                 source_wids = [settings.PAD_ID]*(source_bucket_length-lsource)+source_wids
             else:
                 source_wids = source_wids + [settings.PAD_ID]*(source_bucket_length-lsource)
-            break
-    return (source_wids,target_wids,bucket_id)
+            return (source_wids,target_wids,bucket_id)
+    return (None,None,None)
 
 def split_train_dev():
     global train_set,dev_set
@@ -109,5 +93,8 @@ def wordlist_to_token_ids(wordlist):
     return ids
 
 if __name__ == '__main__':
-    load_and_prepare_data()
+    load_data()
+    prepare_dataset()
+    print test_data[0]
+    #load_and_prepare_data()
     #print [len(one) for one in data_set], ' data in each bucket'
