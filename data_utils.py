@@ -92,6 +92,10 @@ def wordlist_to_token_ids(wordlist):
             ids[i] = dictionary[settings.UNK]
     return ids
 
+def token_ids_to_wordlist(token_ids):
+    return [inv_dictionary[wid] for wid in token_ids]
+
+
 if __name__ == '__main__':
     load_data()
     prepare_dataset()

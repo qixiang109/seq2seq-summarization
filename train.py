@@ -13,6 +13,38 @@ import datetime
 import utils
 from progressive.bar import Bar
 import os
+import word2vec_model
+
+
+def initialize_variable(session,model,variable_name,value):
+    #embedding_variable_name = "RNN/EmbeddingWrapper/embedding"
+    vs =  [v for v in tf.all_variables() if variable_name in v.name]
+    if len(vs)==0:
+        print 'no variable',variable_name,' in the model to initialize'
+        sys.exit(1)
+    elif len(vs)>1:
+        print 'too much variables contain',variable_name
+        sys.exit(1)
+    else:
+        tf_variable = vs[0]
+        session.run([tf_variable.initializer],{tf_variable.initializer.inputs[1]: value})
+
+def pre_train_word2vec():
+    encode_texts =[]
+    decode_texts =[]
+    for bucket_id, pairs in enumerate(data_utils.train_set):
+        shoud_break = False
+        for source,target in pairs:
+            encode_texts.append(data_utils.token_ids_to_wordlist(source))
+            decode_texts.append(data_utils.token_ids_to_wordlist(target))
+            if len(encode_texts)== settings.initialize_embedding_data_num:
+                shoud_break = True
+                break
+        if shoud_break:
+            break
+    encode_w2v = word2vec_model.run(encode_texts,settings.size)
+    decode_w2v = word2vec_model.run(decode_texts,settings.size)
+    return (encode_w2v,decode_w2v)
 
 def create_model(session, forward_only):
     model = simple_enc_dec_model.Model(
@@ -35,6 +67,12 @@ def create_model(session, forward_only):
     else:
         print("Initilizing model with fresh parameters.")
         session.run(tf.initialize_all_variables())
+        if settings.initialize_embedding:
+            print("Initilizing embedding with word2vec.")
+            encode_w2v,decode_w2v = pre_train_word2vec()
+            initialize_variable(session, model,'RNN/EmbeddingWrapper/embedding',encode_w2v)
+            initialize_variable(session, model,'embedding_rnn_decoder/embedding:0',decode_w2v)
+            #print tf.get_default_graph().get_tensor_by_name(u'embedding_rnn_seq2seq/RNN/EmbeddingWrapper/embedding:0').eval()
     return model
 
 previous_batch_losses  = []
@@ -91,7 +129,7 @@ def do_epoch(model,session):
     return np.sum(batch_losses)
 
 def train():
-    fw = open(settings.test_decode_file,'w')
+    fw = open(settings.test_decode_path,'w')
     fw.close()
     with tf.Session() as sess:
         print("Creating %d layers of %d units." %
@@ -130,7 +168,7 @@ def decode(wordlist,session=None,model=None):
     return " ".join([data_utils.inv_dictionary[output] for output in outputs]).encode('utf-8')
 
 def test(session, model):
-    fw = open(settings.test_decode_file,'a')
+    fw = open(settings.test_decode_path,'a')
     for i,wordlist in enumerate(data_utils.test_data[0:10]):
         fw.write(str(i)+' '+decode(wordlist,session,model).encode('utf-8')+'\n')
         fw.write('\n')

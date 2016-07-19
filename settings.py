@@ -47,10 +47,12 @@ max_gradient_norm = 5.0
 forward_only = False
 
 #训练
+train_dir = 'train'
+steps_per_checkpoint = 100
+initialize_embedding = True
+initialize_embedding_data_num = 100000
+test_decode_path = train_dir+'/dev_decode.txt'
 min_epoch = 5
 max_epoch = 500
 convergence = 1e-5
 look_back = 3
-train_dir = 'train'
-steps_per_checkpoint = 100
-test_decode_file = 'dev_decode.txt'
