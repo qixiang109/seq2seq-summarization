@@ -55,3 +55,4 @@ train_dir = 'train'
 initialize_embedding = False
 initialize_embedding_data_num = 100000
 max_epoch = 100
+step_per_testpoint = 200

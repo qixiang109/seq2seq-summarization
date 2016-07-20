@@ -105,6 +105,8 @@ def do_batch(model, session, batch_data, bucket_id):
     _, step_loss, _ = model.step(
         session, encoder_inputs, decoder_inputs, target_weights, bucket_id, False)
     d2 = datetime.datetime.now()
+    if current_step%settings.step_per_testpoint==0:
+        do_test(session,model)
     return (step_loss, d2 - d1)
 
 
@@ -140,6 +142,7 @@ def do_epoch(model, session):
         mean_batch_loss = epoch_loss / len(batch_losses)
         print '\tbatch loss:'+str(batch_loss),
         print '\tbatchtime:'+str(round(batch_time.total_seconds(),1))+' epochtime:'+str(round(time_used.total_seconds(),1))+'/'+str(round((time_used+time_eta).total_seconds(),1            ))
+        sys.stdout.flush()
     return epoch_loss
 
 
@@ -150,7 +153,9 @@ def do_test(session, model):
         test_target_words = ' '.join(
             [data_utils.inv_dictionary[wid] for wid in test_target]).encode('utf-8')
         print test_target_words
+        sys.stdout.flush()
     print ''
+    sys.stdout.flush()
 
 
 def do_checkpoint(session, model):
@@ -167,7 +172,6 @@ def train():
         while True:
             loss = 0
             loss = do_epoch(model, sess)
-            do_test(sess, model)
             do_checkpoint(sess, model)
             if current_epoch == settings.max_epoch:
                 break
