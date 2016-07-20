@@ -28,6 +28,8 @@ def shuffle_divide(L,m):
         i+=m
     return ret
 
+
+
 if __name__ == '__main__':
     weighted_choice([(0,2),(1,3),(2,1)])
     shuffle_divide([1,2,3,4,5],2)

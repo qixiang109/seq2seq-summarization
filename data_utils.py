@@ -12,8 +12,6 @@ dictionary={}
 inv_dictionary={}
 vocab_size = 0
 data_set = [ [] for bucket in settings.buckets ]
-train_set = [ [] for bucket in settings.buckets ]
-dev_set = [ [] for bucket in settings.buckets ]
 
 
 
@@ -64,17 +62,9 @@ def format_source_target(source_wids,target_wids,test=False):
             return (source_wids,target_wids,bucket_id)
     return (None,None,None)
 
-def split_train_dev():
-    global train_set,dev_set
-    for i, one_set in enumerate(data_set):
-        spliter = int((1-settings.dev_ratio) * len(one_set))
-        train_set[i] = data_set[i][:spliter]
-        dev_set[i] = data_set[i][spliter:]
-
 def load_and_prepare_data():
     load_data()
     prepare_dataset()
-    split_train_dev()
 
 def wordlist_to_token_ids(wordlist):
     if isinstance(wordlist, str):
