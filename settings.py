@@ -35,11 +35,12 @@ buckets=[(140,30)]
 
 """模型参数"""
 attention = False
-size = 16
+embedding_size = 16
+hidden_size = 64
 num_layers = 1
 cell_type = 'GRU'
-batch_size = 512
-num_samples = 0
+batch_size = 128
+num_samples = 512
 forward_only = False
 
 """Adam优化算法参数"""

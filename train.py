@@ -48,9 +48,9 @@ def pre_train_word2vec():
         if shoud_break:
             break
     encode_w2v = np.random.uniform(-0.1, 0.1,
-                                   size=(len(data_utils.inv_dictionary), settings.size))
+                                   size=(len(data_utils.inv_dictionary), settings.embedding_size))
     decode_w2v = np.random.uniform(-0.1, 0.1,
-                                   size=(len(data_utils.inv_dictionary), settings.size))
+                                   size=(len(data_utils.inv_dictionary), settings.embedding_size))
     encode_model = gensim.models.Word2Vec(encode_texts, size, workers=10)
     decode_model = gensim.models.Word2Vec(decode_texts, size, workers=10)
     for word in encode_model.vocab:
@@ -67,7 +67,8 @@ def create_model(session, forward_only):
     model = seq2seqmodel.Model(
         vocab_size=len(data_utils.dictionary),
         buckets=settings.buckets,
-        size=settings.size,
+        embedding_size=settings.embedding_size,
+        hidden_size=settings.hidden_size,
         num_layers=settings.num_layers,
         batch_size=settings.batch_size,
         cell_type=settings.cell_type,
@@ -88,8 +89,9 @@ def create_model(session, forward_only):
                 session, model, 'EmbeddingWrapper/embedding', encode_w2v)
             initialize_variable(
                 session, model, '_decoder/embedding:0', decode_w2v)
-            # print
-            # tf.get_default_graph().get_tensor_by_name(u'embedding_rnn_seq2seq/RNN/EmbeddingWrapper/embedding:0').eval()
+    #print [v.name for v in tf.all_variables() if 'embedding' in v.name]
+    #print tf.get_default_graph().get_tensor_by_name(u'embedding_rnn_seq2seq/RNN/EmbeddingWrapper/embedding:0').eval().shape
+    #print tf.get_default_graph().get_tensor_by_name(u'embedding_rnn_seq2seq/embedding_rnn_decoder/embedding:0').eval().shape
     return model
 
 
@@ -137,7 +139,7 @@ def do_epoch(model, session):
         epoch_loss += batch_loss
         mean_batch_loss = epoch_loss / len(batch_losses)
         print '\tbatch loss:'+str(batch_loss),
-        print '\tbatchtime:'+str(round(batch_time.total_seconds(),1))+' epochtime:'+str(round(time_used.total_seconds(),1))+'/'+str(round((time_used+time_eta).total_seconds(),1))
+        print '\tbatchtime:'+str(round(batch_time.total_seconds(),1))+' epochtime:'+str(round(time_used.total_seconds(),1))+'/'+str(round((time_used+time_eta).total_seconds(),1            ))
     return epoch_loss
 
 
@@ -160,7 +162,7 @@ def train():
     data_utils.load_and_prepare_data()
     with tf.Session() as sess:
         print("Creating %d layers of %d units." %
-              (settings.num_layers, settings.size))
+              (settings.num_layers, settings.hidden_size))
         model = create_model(sess, settings.forward_only)
         while True:
             loss = 0

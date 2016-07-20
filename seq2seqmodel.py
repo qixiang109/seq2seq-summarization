@@ -13,12 +13,13 @@ import data_utils
 class Model(object):
     """最简单的rnn编码器-解码器模型"""
 
-    def __init__(self, vocab_size=4000, buckets=[(140,30)], size=128,
+    def __init__(self, vocab_size=4000, buckets=[(140,30)], embedding_size=128,hidden_size=128,
                  num_layers=3, batch_size=512,
                  cell_type = 'GRU', num_samples = 512, forward_only=False):
         self.vocab_size = vocab_size
         self.buckets = buckets
-        self.size = size
+        self.embedding_size = embedding_size
+        self.hidden_size = hidden_size
         self.num_layers = num_layers
         self.batch_size = batch_size
         self.cell_type = cell_type
@@ -30,7 +31,7 @@ class Model(object):
         output_projection = None
         softmax_loss_function = None
         if self.num_samples > 0 and self.num_samples < self.vocab_size:
-            w = tf.get_variable("proj_w", [self.size, self.vocab_size])
+            w = tf.get_variable("proj_w", [self.hidden_size, self.vocab_size])
             w_t = tf.transpose(w)
             b = tf.get_variable("proj_b", [self.vocab_size])
             output_projection = (w, b)
@@ -42,9 +43,9 @@ class Model(object):
             softmax_loss_function = sampled_loss
 
         #create multilayer rnn
-        single_cell = tf.nn.rnn_cell.GRUCell(self.size)
+        single_cell = tf.nn.rnn_cell.GRUCell(self.hidden_size)
         if self.cell_type == 'LSTM':
-            single_cell = tf.nn.rnn_cell.BasicLSTMCell(self.size)
+            single_cell = tf.nn.rnn_cell.BasicLSTMCell(self.hidden_size)
         cell = single_cell
         if self.num_layers >1:
             cell = tf.nn.rnn_cell.MultiRNNCell([single_cell] * self.num_layers)
@@ -54,12 +55,12 @@ class Model(object):
             if settings.attention:
                 return tf.nn.seq2seq.embedding_attention_seq2seq(encoder_inputs, decoder_inputs, cell,
                           num_encoder_symbols = self.vocab_size, num_decoder_symbols = self.vocab_size,
-                          embedding_size = size, output_projection=output_projection,
+                          embedding_size = self.embedding_size, output_projection=output_projection,
                           feed_previous=do_decode)
             else:
                 return tf.nn.seq2seq.embedding_rnn_seq2seq(encoder_inputs, decoder_inputs, cell,
                           num_encoder_symbols = self.vocab_size, num_decoder_symbols = self.vocab_size,
-                          embedding_size = size, output_projection=output_projection,
+                          embedding_size = self.embedding_size, output_projection=output_projection,
                           feed_previous=do_decode)
         #feeds for input
         self.encoder_inputs = []
