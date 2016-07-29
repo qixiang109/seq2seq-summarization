@@ -22,8 +22,7 @@ class Seq2SeqModel(object):
     """
 
     def __init__(self, source_vocab_size, target_vocab_size, buckets, size,
-                 num_layers, max_gradient_norm, batch_size, learning_rate,
-                 learning_rate_decay_factor, use_lstm=False,
+                 num_layers, max_gradient_norm, batch_size, optimizer, use_lstm=False,
                  num_samples=512, forward_only=False):
         """Create the model.
 
@@ -51,9 +50,7 @@ class Seq2SeqModel(object):
         self.target_vocab_size = target_vocab_size
         self.buckets = buckets
         self.batch_size = batch_size
-        self.learning_rate = tf.Variable(float(learning_rate), trainable=False)
-        self.learning_rate_decay_op = self.learning_rate.assign(
-            self.learning_rate * learning_rate_decay_factor)
+        self.optimizer = optimizer
         self.global_step = tf.Variable(0, trainable=False)
 
         # If we use sampled softmax, we need an output projection.
@@ -136,7 +133,7 @@ class Seq2SeqModel(object):
         if not forward_only:
             self.gradient_norms = []
             self.updates = []
-            opt = tf.train.GradientDescentOptimizer(self.learning_rate)
+            opt = self.optimizer
             for b in xrange(len(buckets)):
                 gradients = tf.gradients(self.losses[b], params)
                 clipped_gradients, norm = tf.clip_by_global_norm(gradients,

@@ -19,8 +19,7 @@ def create_model(session, forward_only):
     model = seq2seq_model.Seq2SeqModel(
         settings.sr_vocab_size, settings.tg_vocab_size, settings.buckets,
         settings.size, settings.num_layers, settings.max_gradient_norm, settings.batch_size,
-        settings.learning_rate, settings.learning_rate_decay_factor,
-        forward_only=forward_only)
+        settings.optimizer,use_lstm=settings.use_LSTM, num_samples = settings.num_samples, forward_only=forward_only)
     ckpt = tf.train.get_checkpoint_state(settings.train_dir)
     if ckpt and tf.gfile.Exists(ckpt.model_checkpoint_path):
         print("Reading model parameters from %s" % ckpt.model_checkpoint_path)
