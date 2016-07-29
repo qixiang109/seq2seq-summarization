@@ -19,6 +19,7 @@ EOS_ID = 2
 UNK_ID = 3
 buckets=[(142,30)]
 reverse_source = True
+max_train_num = 500000
 
 """模型参数"""
 attention = True
@@ -34,5 +35,5 @@ optimizer = tf.train.AdamOptimizer(learning_rate = 1.0,beta1=0.9,beta2=0.99,epsi
 max_gradient_norm = 5.0
 
 """训练参数"""
-train_dir = 'train'
+train_dir = 'train/'
 steps_per_checkpoint = 1
