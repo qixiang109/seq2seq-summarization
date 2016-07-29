@@ -24,13 +24,13 @@ buckets=[(140,30)]
 reverse_source = True
 
 """模型参数"""
-attention = False
+attention = True
 size=512
 #embedding_size = 16
 #hidden_size = 64
-num_layers = 1
+num_layers = 3
 cell_type = 'GRU'
-batch_size = 64
+batch_size = 128
 num_samples = 512
 forward_only = False
 
@@ -42,7 +42,7 @@ epsilon = 0.5
 max_gradient_norm = 5.0
 
 """SGD"""
-learning_rate_decay_factor=0.9
+learning_rate_decay_factor=0.95
 
 
 """训练参数"""

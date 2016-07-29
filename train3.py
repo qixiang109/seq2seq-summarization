@@ -47,8 +47,8 @@ def train():
 
         current_epoch = 0
         current_step = 0
-        train_loss=[]
-        train_time=[]
+        train_losses=[]
+        train_times=[]
         while True:
             current_epoch+=1
             for batch_id in xrange(len(train_batches)):
@@ -57,29 +57,30 @@ def train():
                 encoder_inputs, decoder_inputs, target_weights = model.preprocess_batch(train_batches[batch_id], train_bucket_ids[batch_id])
                 _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
                                          target_weights, train_bucket_ids[batch_id], False)
-                step_loss = step_loss/model.batch_size
-                train_loss.append(step_loss)
-                train_time.append(time.time() - start_time)
+                train_losses.append(step_loss)
+                train_times.append(time.time() - start_time)
                 if current_step % settings.steps_per_checkpoint == 0:
-                    mean_step_loss = sum(train_loss)/settings.steps_per_checkpoint
-                    mean_step_time = sum(train_time)/settings.steps_per_checkpoint
-                    perplexity = math.exp(mean_step_loss) if mean_step_loss < 300 else float('inf')
+                    mean_train_loss = sum(train_losses)/settings.steps_per_checkpoint
+                    mean_train_time = sum(train_times)/settings.steps_per_checkpoint
+                    train_ppx = math.exp(mean_train_loss) if mean_train_loss < 300 else float('inf')
                     print "global step %d learning rate %.4f step-time %.2f perplexity %.2f" % (model.global_step.eval(), model.learning_rate.eval(),
-                                mean_step_time , perplexity)
-                    train_loss=[]
-                    train_time=[]
+                                mean_train_time , train_ppx)
+                    train_losses=[]
+                    train_times=[]
                     # evaluate in development set
                     dev_losses=[]
                     for dev_batch_id in xrange(len(dev_batches)):
                         encoder_inputs, decoder_inputs, target_weights = model.preprocess_batch(dev_batches[dev_batch_id], dev_bucket_ids[dev_batch_id])
                         _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
                                                  target_weights, dev_bucket_ids[dev_batch_id], True)
-                        dev_losses.append(step_loss/model.batch_size)
-                    dev_loss = sum(dev_losses)/len(dev_losses)
-                    dev_ppx = math.exp(dev_loss) if dev_loss < 300 else float('inf')
+                        dev_losses.append(step_loss)
+                    mean_dev_loss = sum(dev_losses)/len(dev_losses)
+                    dev_ppx = math.exp(mean_dev_loss) if mean_dev_loss < 300 else float('inf')
                     print "dev perplexity %.2f" % dev_ppx
+                    sys.stdout.flush()
+                    checkpoint_path = os.path.join(settings.train_dir, "summary.ckpt")
+                    model.saver.save(sess, checkpoint_path,global_step=model.global_step)
             train_batches,train_bucket_ids = data_utils.batchize(train_set)
-
 def main(_):
     train()
 
