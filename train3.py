@@ -78,9 +78,57 @@ def train():
                     dev_ppx = math.exp(mean_dev_loss) if mean_dev_loss < 300 else float('inf')
                     print "dev perplexity %.2f" % dev_ppx
                     sys.stdout.flush()
-                    checkpoint_path = os.path.join(settings.train_dir, "summary.ckpt")
-                    model.saver.save(sess, checkpoint_path,global_step=model.global_step)
+                    #checkpoint_path = os.path.join(settings.train_dir, "summary.ckpt")
+                    #model.saver.save(sess, checkpoint_path,global_step=model.global_step)
             train_batches,train_bucket_ids = data_utils.batchize(train_set)
+
+
+def train2():
+    print "Preparing data in %s" % settings.data_dir
+    sr_train_ids_path, tg_train_ids_path,sr_dev_ids_path, tg_dev_ids_path,sr_vocab_path, tg_vocab_path = data_utils.prepare_data(settings.data_dir)
+    print "Reading training data from %s" % settings.data_dir
+    train_set = data_utils.read_data(sr_train_ids_path,tg_train_ids_path)
+    print "Reading development data from %s" % settings.data_dir
+    dev_set = data_utils.read_data(sr_dev_ids_path,tg_dev_ids_path)
+    train_bucket_sizes = [len(train_set[b]) for b in xrange(len(settings.buckets))]
+    train_total_size = float(sum(train_bucket_sizes))
+    train_buckets_scale = [sum(train_bucket_sizes[:i + 1]) / train_total_size
+                               for i in xrange(len(train_bucket_sizes))]
+
+    with tf.Session() as sess:
+        print("Creating %d layers of %d units." %
+              (settings.num_layers, settings.size))
+        model = create_model(sess, False)
+
+        step_time, loss = 0.0, 0.0
+        current_step = 0
+        previous_losses = []
+        while True:
+            # Choose a bucket according to data distribution. We pick a random number
+            # in [0, 1] and use the corresponding interval in
+            # train_buckets_scale.
+            random_number_01 = np.random.random_sample()
+            bucket_id = min([i for i in xrange(len(train_buckets_scale))
+                             if train_buckets_scale[i] > random_number_01])
+
+            # Get a batch and make a step.
+            start_time = time.time()
+            encoder_inputs, decoder_inputs, target_weights = model.get_batch(
+                train_set, bucket_id)
+            _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
+                                         target_weights, bucket_id, False)
+            step_time += (time.time() - start_time) / \
+                settings.steps_per_checkpoint
+            loss += step_loss / settings.steps_per_checkpoint
+            current_step += 1
+            if current_step % settings.steps_per_checkpoint == 0:
+                # Print statistics for the previous epoch.
+                perplexity = math.exp(loss) if loss < 300 else float('inf')
+                print ("global step %d learning rate %.4f step-time %.2f perplexity "
+                       "%.2f" % (model.global_step.eval(), model.learning_rate.eval(),
+                                 step_time, perplexity))
+                step_time=0.0
+                loss=0.0
 def main(_):
     train()
 
