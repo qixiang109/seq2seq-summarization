@@ -5,29 +5,26 @@ import re
 import settings
 from optparse import OptionParser
 
-dictionary = {}
-dictionary[settings.PAD] = settings.PAD_ID
-dictionary[settings.GO] = settings.GO_ID
-dictionary[settings.EOS] = settings.EOS_ID
-dictionary[settings.UNK] = settings.UNK_ID
-
-
-def read_text(filename, max_lines=None):
-    docs = []
+def read_text(filename):
+    source_texts=[]
+    target_texts=[]
     pattern_blank = re.compile('\s+')
     for d, line in enumerate(open(filename)):
-        if max_lines is not None and d >= max_lines:
-            break
-        wordlist = pattern_blank.subn(
-            ' ', line)[0].strip().decode('utf-8').split()
-        docs.append(wordlist)
-    return docs
+        source_text, target_text = line.rstrip().decode('utf-8').split('\t')
+        source_wordlist = pattern_blank.subn(' ', source_text)[0].split()
+        target_wordlist = pattern_blank.subn(' ', target_text)[0].split()
+        source_texts.append(source_wordlist)
+        target_texts.append(target_wordlist)
+    return (source_texts,target_texts)
 
-
-def count_vocabulary(docs, vocab_size=None):
-    global dictionary
+def count_vocabulary(texts, vocab_size=None):
+    dictionary={}
+    dictionary[settings.PAD] = settings.PAD_ID
+    dictionary[settings.GO] = settings.GO_ID
+    dictionary[settings.EOS] = settings.EOS_ID
+    dictionary[settings.UNK] = settings.UNK_ID
     df = {}
-    for wordlist in docs:
+    for wordlist in texts:
         for word in set(wordlist):
             if not word in df:
                 df[word] = 0
@@ -36,51 +33,42 @@ def count_vocabulary(docs, vocab_size=None):
         if len(dictionary) == settings.vocab_size:
             break
         dictionary[word] = len(dictionary)
-
-
-def wordlist_to_token_ids(wordlist):
-    if isinstance(wordlist, str):
-        wordlist = wordlist.decode('utf-8')
-    if isinstance(wordlist, unicode):
-        wordlist = list(wordlist)
-    if not isinstance(wordlist, list):
-        print 'sentence', wordlist, 'not str, unicode or list'
-        return None
-    ids = [-1] * len(wordlist)
-    for i, word in enumerate(wordlist):
-        if word in dictionary:
-            ids[i] = dictionary[word]
-        else:
-            ids[i] = dictionary[settings.UNK]
-    return ids
-
-
-def docs_to_token_ids(docs):
-    ret = []
-    for wordlist in docs:
-        ids = wordlist_to_token_ids(wordlist)
-        ret.append(ids)
-    return ret
+    return dictionary
 
 
 def preprocess():
-    source_docs = read_text(settings.source_text_file, settings.preprocess_num)
-    target_docs = read_text(settings.target_text_file, settings.preprocess_num)
-    count_vocabulary(source_docs + target_docs)
-    source_wordids = docs_to_token_ids(source_docs)
-    target_wordids = docs_to_token_ids(target_docs)
-    with open(settings.source_wid_file, 'w') as fw:
-        for widlist in source_wordids:
-            fw.write(' '.join(map(str,widlist)) + '\n')
-    with open(settings.target_wid_file, 'w') as fw:
-        for widlist in target_wordids:
-            fw.write(' '.join(map(str,widlist)) + '\n')
+
+    #读取训练数据，统计词典，数值化文档
+    train_source_texts,train_target_texts  =  read_text(settings.train_text_file)
+    dictionary = count_vocabulary(train_source_texts+train_target_texts)
+    train_source_wids=[]
+    train_target_wids=[]
+    for wordlist in train_source_texts:
+        train_source_wids.append([dictionary[word] if word in dictionary else settings.UNK_ID for word in wordlist])
+    for wordlist in train_target_texts:
+        train_target_wids.append([dictionary[word] if word in dictionary else settings.UNK_ID for word in wordlist])
+    with open(settings.train_wid_file, 'w') as fw:
+        for i in xrange(len(train_source_wids)):
+            source = train_source_wids[i]
+            target = train_target_wids[i]
+            fw.write(' '.join(map(str,source)) +'\t'+' '.join(map(str,target))+'\n')
     with open(settings.vocab_file, 'w') as fw:
         for word, idx in sorted(dictionary.items(), key=lambda d:d[1], reverse=False):
             fw.write(word + '\t' + str(idx) + '\n')
-    with open(settings.inv_vocab_file, 'w') as fw:
-        for word, idx in sorted(dictionary.items(), key=lambda d:d[1], reverse=False):
-            fw.write(str(idx) + '\t' + word + '\n')
+
+    #读取测试数据，数值化文档
+    test_source_texts,test_target_texts  =  read_text(settings.test_text_file)
+    test_source_wids=[]
+    test_target_wids=[]
+    for wordlist in test_source_texts:
+        test_source_wids.append([dictionary[word] if word in dictionary else settings.UNK_ID for word in wordlist])
+    for wordlist in test_target_texts:
+        test_target_wids.append([dictionary[word] if word in dictionary else settings.UNK_ID for word in wordlist])
+    with open(settings.test_wid_file, 'w') as fw:
+        for i in xrange(len(test_source_wids)):
+            source = test_source_wids[i]
+            target = test_target_wids[i]
+            fw.write(' '.join(map(str,source)) +'\t'+' '.join(map(str,target))+'\n')
 
 def main():
     preprocess()
