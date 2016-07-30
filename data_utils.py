@@ -141,7 +141,7 @@ def read_data(source_path,target_path,max_size=None):
                 source, target = source_file.readline(), target_file.readline()
     return data_set
 
-def batchize(data_set):
+def batchize(data_set,reperm=True):
     """ 把bucket内部的数据打乱顺序之后做batch分割
         然后再打乱batch顺序
         目的是每个epoch内部batch顺序和batch内部构成都不同
@@ -152,12 +152,16 @@ def batchize(data_set):
     batch_data_sets=[]
     batch_bucket_ids=[]
     for bucket_id, bucket_id_data_set in enumerate(data_set):
-        perm= np.random.permutation(len(bucket_id_data_set))
+        perm = np.array(xrange(len(bucket_id_data_set)))
+        if reperm:#打乱一个bucket内部的数据顺序之后再分batch
+            perm= np.random.permutation(len(bucket_id_data_set))
         repermed_bucket_id_data_set=[bucket_id_data_set[i] for i in perm]
         for i in xrange(len(repermed_bucket_id_data_set)/settings.batch_size):#看一个bucket能分成几个batch
             batch_data_sets.append([repermed_bucket_id_data_set[j] for j in range(i*settings.batch_size,(i+1)*settings.batch_size)])
             batch_bucket_ids.append(bucket_id)
-    perm = np.random.permutation(len(batch_bucket_ids))
+    perm = np.array(xrange(len(batch_bucket_ids)))
+    if reperm:#打乱输出的batch列表顺序
+        perm = np.random.permutation(len(batch_bucket_ids))
     batch_data_sets = [batch_data_sets[i] for i in perm]
     batch_bucket_ids = [batch_bucket_ids[i] for i in perm]
     return (batch_data_sets,batch_bucket_ids)

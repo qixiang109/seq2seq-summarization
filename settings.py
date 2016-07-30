@@ -31,7 +31,10 @@ num_samples = 512
 forward_only = False
 
 """优化算法参数"""
-optimizer = tf.train.AdamOptimizer(learning_rate = 1.0,beta1=0.9,beta2=0.99,epsilon=1e-8)
+adam_optimizer = tf.train.AdamOptimizer(epsilon=1e-8)
+adadelta_optimizer = tf.train.AdadeltaOptimizer(epsilon=1e-8)
+gd_optimizer = tf.train.GradientDescentOptimizer(learning_rate=0.5)
+optimizer = adam_optimizer
 max_gradient_norm = 5.0
 
 """训练参数"""

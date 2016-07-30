@@ -37,7 +37,7 @@ def train():
     train_batches,train_bucket_ids = data_utils.batchize(train_set)
     print "Reading development data from %s" % settings.data_dir
     dev_set = data_utils.read_data(sr_dev_ids_path,tg_dev_ids_path)
-    dev_batches,dev_bucket_ids = data_utils.batchize(dev_set)
+    dev_batches,dev_bucket_ids = data_utils.batchize(dev_set,False)
 
     log_file = open(settings.train_dir+'log.txt','w')
     log_file.write('epoch\tstep\ttime\ttrain-ppx\tdev-ppx\n')
@@ -53,9 +53,11 @@ def train():
             current_epoch+=1
             for batch_id in xrange(len(train_batches)):
                 current_step+=1
+                step_start_time = time.time()
                 encoder_inputs, decoder_inputs, target_weights = model.preprocess_batch(train_batches[batch_id], train_bucket_ids[batch_id])
                 _, step_loss, _ = model.step(sess, encoder_inputs, decoder_inputs,
                                          target_weights, train_bucket_ids[batch_id], False)
+                print "global-step %d\tstep-time %.2f\tstep-loss %.2f" % (model.global_step.eval(),time.time()-step_start_time,step_loss)
                 train_loss+=step_loss/settings.steps_per_checkpoint
                 if current_step % settings.steps_per_checkpoint == 0:
                     # evaluate in training set
